@@ -19,7 +19,7 @@ from pdb import set_trace
 
 FOLDER_PATH = "Outputs"
 IMAGE_SIZE = 28
-BATCH_SIZE = 100
+BATCH_SIZE = 64
 
 num_epochs = 50
 Nyquist_rate = IMAGE_SIZE * IMAGE_SIZE
@@ -82,10 +82,10 @@ class SSIMLoss(nn.Module):
 
 # 卷积块
 class ConvBlock(nn.Module):
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, stride=1, padding=1):
         super().__init__()
         self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=0),
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=padding),
             nn.BatchNorm2d(out_channels),
             nn.LeakyReLU(inplace=True),
         )
@@ -174,11 +174,11 @@ class TransUNet(nn.Module):
         super().__init__()
         self.encoder = nn.ModuleList(
             [
-                ConvBlock(1, 64),
-                ConvBlock(64, 128),
-                ConvBlock(128, 256),
-                ConvBlock(256, 512),
-                ConvBlock(512, 1024),
+                ConvBlock(1, 64, stride=2),
+                ConvBlock(64, 128, stride=2),
+                ConvBlock(128, 256, stride=2),
+                ConvBlock(256, 512, stride=2),
+                ConvBlock(512, 1024, stride=2),
             ]
         )
         self.transformers = nn.ModuleList(
@@ -199,8 +199,8 @@ class TransUNet(nn.Module):
         for encode in self.encoder:
             x = encode(x)
             skips.append(x)
-            if min([x.size(-1), x.size(-2)]) >= 8:
-                x = nn.MaxPool2d(2)(x)
+            # if min([x.size(-1), x.size(-2)]) >= 8:
+            #     x = nn.MaxPool2d(2)(x)
 
         for transformer in self.transformers:
             x = transformer(x)
@@ -258,6 +258,7 @@ def main():
     criterion = SSIMLoss(channel=1)
 
     # 训练过程
+    model.train()
     for epoch in range(num_epochs):
         train_loss = 0.0
         for images, _ in train_loader:
@@ -282,8 +283,12 @@ def main():
 
     # 保存测试集结果
     model.eval()
+    if os.path.exists(FOLDER_PATH):
+        shutil.rmtree(FOLDER_PATH)
+    os.makedirs(FOLDER_PATH)
+    idx = 0
     with torch.no_grad():
-        for images, _ in test_loader:
+        for images, labels in test_loader:
             images = images.to(device)
 
             FISTA_images = sampling(images)
@@ -294,13 +299,11 @@ def main():
             outputs = model(FISTA_images)
 
             # 保存输出图像
-            if os.path.exists(FOLDER_PATH):
-                shutil.rmtree(FOLDER_PATH)
-            os.makedirs(FOLDER_PATH)
             for i in range(outputs.shape[0]):
                 output_images = outputs[i].cpu()
                 output_images = torchvision.transforms.ToPILImage()(output_images)
-                output_images.save(f"{FOLDER_PATH}/output_{i}.jpg")
+                output_images.save(f"{FOLDER_PATH}/{labels[i].item()}_{idx}.jpg")
+                idx += 1
 
     # 保存模型
     torch.save(model.state_dict(), "model.ckpt")
