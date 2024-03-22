@@ -13,7 +13,7 @@ import multiprocessing as mulp
 
 input_folder = "Inputs"
 output_folder = "Results"
-iteration = 65536 * 16   # 2^16 设定帧数，最大为哈达玛矩阵的 行/列 数
+iteration = 65536 * 16  # 2^16 设定帧数，最大为哈达玛矩阵的 行/列 数
 nthreads = 65  # 设置进程数
 px = 64  # 像素
 
@@ -30,7 +30,9 @@ def imaging(input_file):
     cv.threshold(img, 128, 255, cv.THRESH_BINARY)  # 转化为二值图
 
     Sum_of_B = 0  # 定义桶测量值的和
-    Sum_of_I = np.zeros(img.shape)  # 定义热光矩阵的和，初始矩阵设为零，且尺寸为 img.shape 的尺寸
+    Sum_of_I = np.zeros(
+        img.shape
+    )  # 定义热光矩阵的和，初始矩阵设为零，且尺寸为 img.shape 的尺寸
     Sum_of_BI = np.zeros(
         img.shape
     )  # 定义B*I矩阵的和，初始矩阵设为零，且尺寸为 img.shape 的尺寸（B是桶测量值，I是热光矩阵（照明图案））
@@ -46,7 +48,9 @@ def imaging(input_file):
 
         I = np.random.normal(0, 1, img.shape)  # 生成热光矩阵（照明图案）
         Sum_of_I = Sum_of_I + I  # 照明图案累加
-        I_img = np.multiply(I, img)  # 照明图案乘以图像矩阵，即模拟热光照射物体的过程，I_img即为照射物体后的光束矩阵
+        I_img = np.multiply(
+            I, img
+        )  # 照明图案乘以图像矩阵，即模拟热光照射物体的过程，I_img即为照射物体后的光束矩阵
 
         B = sum(sum(I_img))  # 对照射物体后的光束矩阵求和，即获得桶测量值
 
@@ -121,3 +125,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
