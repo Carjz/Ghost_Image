@@ -25,7 +25,7 @@ num_epochs = 50
 Nyquist_rate = IMAGE_SIZE * IMAGE_SIZE
 sampling_times = ceil(Nyquist_rate * 0.01)
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:7" if torch.cuda.is_available() else "cpu")
 
 
 # 双线性插值上采样
@@ -223,6 +223,12 @@ class TransUNet(nn.Module):
         return torch.sigmoid(self.output(x))
 
 
+def print_image(image, filename):
+    image = image.cpu()
+    image = transforms.ToPILImage()(image)
+    image.save(filename)
+
+
 def main():
     # 数据加载
     train_dataset = datasets.MNIST(
@@ -300,9 +306,7 @@ def main():
 
             # 保存输出图像
             for i in range(outputs.shape[0]):
-                output_images = outputs[i].cpu()
-                output_images = torchvision.transforms.ToPILImage()(output_images)
-                output_images.save(f"{FOLDER_PATH}/{labels[i].item()}_{idx}.jpg")
+                print_image(outputs[i], f"{FOLDER_PATH}/{labels[i].item()}_{idx}.jpg")
                 idx += 1
 
     # 保存模型
