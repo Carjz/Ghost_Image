@@ -11,8 +11,8 @@ import time
 
 import multiprocessing as mulp
 
-input_folder = "Inputs"
-output_folder = "Results"
+input_folder = "Inputs/local_MNIST"
+output_folder = "Outputs/classic"
 iteration = 65536 * 16  # 2^16 设定帧数，最大为哈达玛矩阵的 行/列 数
 nthreads = 65  # 设置进程数
 px = 64  # 像素
