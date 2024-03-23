@@ -232,7 +232,7 @@ def print_image(image, filename):
 def main():
     # 数据加载
     train_dataset = datasets.MNIST(
-        "data",
+        "Inputs",
         train=True,
         download=True,
         transform=transforms.Compose(
@@ -243,7 +243,7 @@ def main():
         ),
     )
     test_dataset = datasets.MNIST(
-        "data",
+        "Inputs",
         train=False,
         transform=transforms.Compose(
             [
