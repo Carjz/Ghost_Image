@@ -50,7 +50,7 @@ def normalize(x):
     x = (x - mn) / diff
     x[x == inf] = 0
 
-    return x * 255
+    return x
 
 
 # 损失函数定义
@@ -260,7 +260,7 @@ def main():
     model = TransUNet().to(device)
 
     # 定义优化器和损失函数
-    optimizer = optim.SGD(model.parameters(), lr=1e-4)
+    optimizer = optim.Adam(model.parameters(), lr=1e-4)
     criterion = SSIMLoss(channel=1)
 
     # 训练过程
