@@ -1,2 +1,5 @@
 *.ckpt
+Inputs
+Outputs
+__pycache__
 
