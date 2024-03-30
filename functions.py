@@ -1,8 +1,11 @@
 import torch
 import torch.nn as nn
+import torch.distributed as dist
 import torchvision.transforms as transforms
+from torch.nn.parallel import DistributedDataParallel
 
 from math import sqrt, inf
+import os
 
 from constant import *
 
@@ -63,7 +66,12 @@ def FISTA(y, H, _lambda=0.01, _alpha=1, K=10):
 
 # 图像采样
 def sampling(images):
-    I = torch.randn(BATCH_SIZE, sampling_times, IMAGE_SIZE, IMAGE_SIZE, device="cuda:1").to(device)  # 热光矩阵/随机散斑图案speckle
+    I = torch.randn(
+        BATCH_SIZE, sampling_times, IMAGE_SIZE, IMAGE_SIZE, device="cuda:1"
+    ).to(
+        device
+    )  # 热光矩阵/随机散斑图案speckle
+    print(f"{I.shape} | {images.shape}")
     I_imgs = I * images  # 散斑与物体作用
     B = I_imgs.sum(dim=(2, 3), keepdim=True)  # 桶测量值
     BI = B * I  # 桶测量值与散斑相关性
@@ -83,19 +91,28 @@ def print_image(image, filename):
     image = transforms.ToPILImage()(image)
     image.save(filename)
 
+
 def init_distributed():
     dist_url = "env://"
-    rank = int(os.environ.get('RANK', 0))
-    world_size = int(os.environ.get('WORLD_SIZE', 1))
+    rank = int(os.environ.get("RANK", 0))
+    world_size = int(os.environ.get("WORLD_SIZE", 1))
 
-    dist.init_process_group(backend="nccl", init_method=dist_url, world_size=world_size, rank=rank)
+    dist.init_process_group(
+        backend="nccl", init_method=dist_url, world_size=world_size, rank=rank
+    )
+
 
 def distribute_model(model):
     output_device = 0
 
-    model.encoder = nn.parallel.DistributedDataParallel(model.encoder, device_ids=None, output_device=output_device)
-    model.transformer = nn.parallel.DistributedDataParallel(model.transformer, device_ids=None, output_device=output_device)
-    model.decoder = nn.parallel.DistributedDataParallel(model.decoder, device_ids=None, output_device=output_device)
+    model.encoder = DistributedDataParallel(
+        model.encoder, device_ids=None, output_device=output_device
+    )
+    model.transformer = DistributedDataParallel(
+        model.transformer, device_ids=None, output_device=output_device
+    )
+    model.decoder = DistributedDataParallel(
+        model.decoder, device_ids=None, output_device=output_device
+    )
 
     return model
-

@@ -1,9 +1,9 @@
 import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
-import torch.distributed as dist
 import torchvision.datasets as datasets
-import torchvision.transforms as transforms
+from torch.utils.data.distributed import DistributedSampler
+
 
 import os
 import time
@@ -21,12 +21,18 @@ def main():
     init_distributed()
 
     # 数据加载
+    train_dataset = datasets.ImageFolder(f"{DATASET_DIR}/train", transform=transform)
+    test_dataset = datasets.ImageFolder(f"{DATASET_DIR}/test", transform=transform)
 
-    train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
-    test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
+    train_sampler = DistributedSampler(train_dataset, shuffle=True)
+    test_sampler = DistributedSampler(test_dataset, shuffle=False)
 
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, sampler=train_sampler)
-    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, sampler=test_sampler)
+    train_loader = DataLoader(
+        train_dataset, batch_size=BATCH_SIZE, sampler=train_sampler, drop_last=True
+    )
+    test_loader = DataLoader(
+        test_dataset, batch_size=BATCH_SIZE, sampler=test_sampler, drop_last=False
+    )
 
     # 模型实例化
     model = TransUNet().to(device)
