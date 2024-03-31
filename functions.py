@@ -71,7 +71,6 @@ def sampling(images):
     ).to(
         device
     )  # 热光矩阵/随机散斑图案speckle
-    print(f"{I.shape} | {images.shape}")
     I_imgs = I * images  # 散斑与物体作用
     B = I_imgs.sum(dim=(2, 3), keepdim=True)  # 桶测量值
     BI = B * I  # 桶测量值与散斑相关性
