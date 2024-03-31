@@ -37,7 +37,7 @@ class SSIMLoss(nn.Module):
 
 # 卷积块
 class ConvBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, stride=1, padding=1):
+    def __init__(self, in_channels, out_channels, stride=1, padding=0):
         super().__init__()
         self.conv = nn.Sequential(
             nn.Conv2d(

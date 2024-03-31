@@ -21,8 +21,10 @@ def main():
     init_distributed()
 
     # 数据加载
-    train_dataset = datasets.ImageFolder(f"{DATASET_DIR}/train", transform=transform)
-    test_dataset = datasets.ImageFolder(f"{DATASET_DIR}/test", transform=transform)
+    # train_dataset = datasets.ImageFolder(f"{DATASET_DIR}/train", transform=transform)
+    # test_dataset = datasets.ImageFolder(f"{DATASET_DIR}/test", transform=transform)
+    train_dataset = datasets.MNIST("Inputs", train=True, download=True, transform=transform)
+    test_dataset = datasets.MNIST("Inputs", train=False, download=True, transform=transform)
 
     train_sampler = DistributedSampler(train_dataset, shuffle=True)
     test_sampler = DistributedSampler(test_dataset, shuffle=False)
@@ -31,7 +33,7 @@ def main():
         train_dataset, batch_size=BATCH_SIZE, sampler=train_sampler, drop_last=True
     )
     test_loader = DataLoader(
-        test_dataset, batch_size=BATCH_SIZE, sampler=test_sampler, drop_last=False
+        test_dataset, batch_size=BATCH_SIZE, sampler=test_sampler, drop_last=True
     )
 
     # 模型实例化
@@ -51,7 +53,7 @@ def main():
 
             FISTA_images = sampling(images)
 
-            FISTA_images = normalize(FISTA_images)
+            # FISTA_images = normalize(FISTA_images)
 
             # 前向传播
             outputs = model(FISTA_images)
@@ -78,10 +80,9 @@ def main():
 
             FISTA_images = sampling(images)
 
-            FISTA_images = normalize(FISTA_images)
-
             # 前向传播
             outputs = model(FISTA_images)
+            outputs = normalize(outputs)
 
             # 保存输出图像
             for i in range(outputs.shape[0]):
