@@ -23,8 +23,8 @@ def main():
     # 数据加载
     # train_dataset = datasets.ImageFolder(f"{DATASET_DIR}/train", transform=transform)
     # test_dataset = datasets.ImageFolder(f"{DATASET_DIR}/test", transform=transform)
-    train_dataset = datasets.MNIST("Inputs", train=True, download=True, transform=transform)
-    test_dataset = datasets.MNIST("Inputs", train=False, download=True, transform=transform)
+    train_dataset = datasets.MNIST(f"Inputs", transform=transform)
+    test_dataset = datasets.MNIST(f"Inputs", transform=transform)
 
     train_sampler = DistributedSampler(train_dataset, shuffle=True)
     test_sampler = DistributedSampler(test_dataset, shuffle=False)
@@ -51,7 +51,7 @@ def main():
         for images, _ in train_loader:
             images = images.to(device)
 
-            FISTA_images = sampling(images)
+            FISTA_images = sampling(images) / 255
 
             # FISTA_images = normalize(FISTA_images)
 
@@ -78,11 +78,11 @@ def main():
         for images, labels in test_loader:
             images = images.to(device)
 
-            FISTA_images = sampling(images)
+            FISTA_images = sampling(images) / 255
 
             # 前向传播
             outputs = model(FISTA_images)
-            outputs = normalize(outputs)
+            outputs = normalize(outputs) * 255
 
             # 保存输出图像
             for i in range(outputs.shape[0]):

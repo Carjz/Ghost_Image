@@ -102,7 +102,7 @@ def init_distributed():
 
 
 def distribute_model(model):
-    output_device = 0
+    output_device = device_id
 
     model.encoder = DistributedDataParallel(
         model.encoder, device_ids=None, output_device=output_device
