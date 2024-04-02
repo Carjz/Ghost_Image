@@ -3,9 +3,9 @@
 export MASTER_ADDR=localhost
 export MASTER_PORT=8223
 
-module load apps/anaconda3/
+../env.sh
 . activate
-conda activate pytorch
+conda activate lhy_pytorch
 
 python main.py
 

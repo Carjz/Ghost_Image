@@ -51,12 +51,10 @@ def main():
         for images, _ in train_loader:
             images = images.to(device)
 
-            FISTA_images = sampling(images) / 255
-
-            # FISTA_images = normalize(FISTA_images)
+            sampled_images = sampling(images) / 255
 
             # 前向传播
-            outputs = model(FISTA_images)
+            outputs = model(sampled_images)
 
             loss = criterion(outputs, images)
             optimizer.zero_grad()
@@ -78,10 +76,10 @@ def main():
         for images, labels in test_loader:
             images = images.to(device)
 
-            FISTA_images = sampling(images) / 255
+            sampled_images = sampling(images) / 255
 
             # 前向传播
-            outputs = model(FISTA_images)
+            outputs = model(sampled_images)
             outputs = normalize(outputs) * 255
 
             # 保存输出图像

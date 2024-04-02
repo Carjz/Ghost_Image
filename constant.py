@@ -14,7 +14,7 @@ sampling_times = ceil(Nyquist_rate * 0.01)
 
 device_id = 0
 device = torch.device(f"cuda:{device_id}" if torch.cuda.is_available() else "cpu")
-gpus = torch.cuda.device_count()
+gpus = [0, 1, 2]
 
 transform = transforms.Compose(
     [
