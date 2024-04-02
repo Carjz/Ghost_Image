@@ -1,11 +1,9 @@
 import torch
 import torch.nn as nn
-import torch.distributed as dist
 import torchvision.transforms as transforms
-from torch.nn.parallel import DistributedDataParallel
+import pytorch_msssim
 
 from math import sqrt, inf
-import os
 
 from constant import *
 
@@ -37,11 +35,63 @@ def normalize(x):
     return x
 
 
+# 图像采样
+def sampling(images):
+    I = torch.randn(
+        BATCH_SIZE, sampling_times, IMAGE_SIZE, IMAGE_SIZE, device=f"cuda:{gpus[1]}"
+    ).to(
+        device
+    )  # 热光矩阵/随机散斑图案speckle
+    I_imgs = I * images  # 散斑与物体作用
+    B = I_imgs.sum(dim=(2, 3), keepdim=True)  # 桶测量值
+    BI = B * I  # 桶测量值与散斑相关性
+
+    B_avg = B.sum(dim=1, keepdim=True) / sampling_times
+    I_avg = I.sum(dim=1, keepdim=True) / sampling_times
+    BI_avg = BI.sum(dim=1, keepdim=True) / sampling_times
+
+    # FISTA_image = FISTA(BI_avg, B_avg * I_avg, _lambda=0.05, _alpha=0.1, K=5)
+    sampled_images = BI_avg - B_avg * I_avg
+
+    return sampled_images
+
+
+# 损失函数定义
+class SSIMLoss(nn.Module):
+    def __init__(
+        self,
+        data_range=1.0,
+        size_average=True,
+        win_size=11,
+        win_sigma=1.5,
+        channel=3,
+        spatial_dims=2,
+    ):
+        super().__init__()
+        self.ssim_loss = pytorch_msssim.SSIM(
+            data_range=data_range,
+            size_average=size_average,
+            win_size=win_size,
+            win_sigma=win_sigma,
+            channel=channel,
+            spatial_dims=spatial_dims,
+        )
+
+    def forward(self, img1, img2):
+        ssim_value = self.ssim_loss(img1, img2)
+        loss = 1 - ssim_value
+        return loss
+
+
+def print_image(image, filename):
+    image = image.cpu()
+    image = transforms.ToPILImage()(image)
+    image.save(filename)
+
+
 # 软阈值函数
 def soft_threshold(x, _lambda):
-    thresholded = torch.abs(x) - _lambda
-    thresholded = torch.clamp(thresholded, min=0)
-    return torch.sign(x) * thresholded
+    return torch.sign(x) * torch.clamp(torch.abs(x) - _lambda, min=0)
 
 
 # FISTA图像重建
@@ -62,56 +112,3 @@ def FISTA(y, H, _lambda=0.01, _alpha=1, K=10):
     x = x.nan_to_num(0)
 
     return x
-
-
-# 图像采样
-def sampling(images):
-    I = torch.randn(
-        BATCH_SIZE, sampling_times, IMAGE_SIZE, IMAGE_SIZE, device="cuda:1"
-    ).to(
-        device
-    )  # 热光矩阵/随机散斑图案speckle
-    I_imgs = I * images  # 散斑与物体作用
-    B = I_imgs.sum(dim=(2, 3), keepdim=True)  # 桶测量值
-    BI = B * I  # 桶测量值与散斑相关性
-
-    B_avg = B.sum(dim=1, keepdim=True) / sampling_times
-    I_avg = I.sum(dim=1, keepdim=True) / sampling_times
-    BI_avg = BI.sum(dim=1, keepdim=True) / sampling_times
-
-    # FISTA_image = FISTA(BI_avg, B_avg * I_avg, _lambda=0.05, _alpha=0.1, K=5)
-    FISTA_image = BI_avg - B_avg * I_avg
-
-    return FISTA_image
-
-
-def print_image(image, filename):
-    image = image.cpu()
-    image = transforms.ToPILImage()(image)
-    image.save(filename)
-
-
-def init_distributed():
-    dist_url = "env://"
-    rank = int(os.environ.get("RANK", 0))
-    world_size = int(os.environ.get("WORLD_SIZE", 1))
-
-    dist.init_process_group(
-        backend="nccl", init_method=dist_url, world_size=world_size, rank=rank
-    )
-
-
-def distribute_model(model):
-    output_device = device_id
-
-    model.encoder = DistributedDataParallel(
-        model.encoder, device_ids=None, output_device=output_device
-    )
-    model.transformer = DistributedDataParallel(
-        model.transformer, device_ids=None, output_device=output_device
-    )
-    model.decoder = DistributedDataParallel(
-        model.decoder, device_ids=None, output_device=output_device
-    )
-
-    return model

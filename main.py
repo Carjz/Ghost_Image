@@ -2,7 +2,6 @@ import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
 import torchvision.datasets as datasets
-from torch.utils.data.distributed import DistributedSampler
 
 
 import os
@@ -17,28 +16,20 @@ from functions import *
 
 
 def main():
-    # 分布式训练初始化
-    init_distributed()
-
     # 数据加载
-    # train_dataset = datasets.ImageFolder(f"{DATASET_DIR}/train", transform=transform)
-    # test_dataset = datasets.ImageFolder(f"{DATASET_DIR}/test", transform=transform)
     train_dataset = datasets.MNIST(f"Inputs", transform=transform)
     test_dataset = datasets.MNIST(f"Inputs", transform=transform)
+    # train_dataset = datasets.ImageFolder(f"{DATASET_DIR}/train", transform=transform)
+    # test_dataset = datasets.ImageFolder(f"{DATASET_DIR}/test", transform=transform)
 
-    train_sampler = DistributedSampler(train_dataset, shuffle=True)
-    test_sampler = DistributedSampler(test_dataset, shuffle=False)
-
-    train_loader = DataLoader(
-        train_dataset, batch_size=BATCH_SIZE, sampler=train_sampler, drop_last=True
-    )
-    test_loader = DataLoader(
-        test_dataset, batch_size=BATCH_SIZE, sampler=test_sampler, drop_last=True
-    )
+    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, drop_last=True)
+    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, drop_last=True)
 
     # 模型实例化
-    model = TransUNet().to(device)
-    model = distribute_model(model)
+    if PIPELINE:
+        model = TransUNet().to(device)
+    else:
+        model = nn.DataParallel(TransUNet().to(device))
 
     # 定义优化器和损失函数
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
@@ -67,10 +58,11 @@ def main():
         print(f"Epoch {epoch+1}/{num_epochs}, Loss: {train_loss/len(train_loader):.6f}")
 
     # 保存测试集结果
-    model.eval()
     if os.path.exists(FOLDER_PATH):
         shutil.rmtree(FOLDER_PATH)
     os.makedirs(FOLDER_PATH)
+
+    model.eval()
     idx = 0
     with torch.no_grad():
         for images, labels in test_loader:
