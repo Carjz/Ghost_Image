@@ -1,38 +1,11 @@
 import torch
 import torch.nn as nn
-import pytorch_msssim
+from torchgpipe import GPipe
 
 from constant import *
 from functions import *
 
 from pdb import set_trace
-
-
-# 损失函数定义
-class SSIMLoss(nn.Module):
-    def __init__(
-        self,
-        data_range=1.0,
-        size_average=True,
-        win_size=11,
-        win_sigma=1.5,
-        channel=3,
-        spatial_dims=2,
-    ):
-        super().__init__()
-        self.ssim_loss = pytorch_msssim.SSIM(
-            data_range=data_range,
-            size_average=size_average,
-            win_size=win_size,
-            win_sigma=win_sigma,
-            channel=channel,
-            spatial_dims=spatial_dims,
-        )
-
-    def forward(self, img1, img2):
-        ssim_value = self.ssim_loss(img1, img2)
-        loss = 1 - ssim_value
-        return loss
 
 
 # 卷积块
@@ -82,15 +55,17 @@ class TransformerBlock(nn.Module):
 class Encoder(nn.Module):
     def __init__(self):
         super().__init__()
-        self.encoder = nn.ModuleList(
-            [
-                ConvBlock(1, 64, stride=2),
-                ConvBlock(64, 128, stride=2),
-                ConvBlock(128, 256, stride=2),
-                ConvBlock(256, 512, stride=2),
-                ConvBlock(512, 1024, stride=2),
-            ]
+        self.encoder = nn.Sequential(
+            ConvBlock(1, 64, stride=2),
+            ConvBlock(64, 128, stride=2),
+            ConvBlock(128, 256, stride=2),
+            ConvBlock(256, 512, stride=2),
+            ConvBlock(512, 1024, stride=2),
         )
+        if PIPELINE:
+            self.encoder = GPipe(
+                self.encoder, [3, 1, 1], chunks=CHUNKS, checkpoint="never"
+            )
 
     def forward(self, x):
         skips = []
@@ -103,9 +78,13 @@ class Encoder(nn.Module):
 class Transformer(nn.Module):
     def __init__(self):
         super().__init__()
-        self.transformers = nn.ModuleList(
-            [TransformerBlock(1024, 1024) for _ in range(6)]
+        self.transformers = nn.Sequential(
+            *[TransformerBlock(1024, 1024) for _ in range(6)]
         )
+        if PIPELINE:
+            self.transformers = GPipe(
+                self.transformers, [2, 2, 2], chunks=CHUNKS, checkpoint="never"
+            )
 
     def forward(self, x):
         for transformer in self.transformers:
@@ -116,14 +95,16 @@ class Transformer(nn.Module):
 class Decoder(nn.Module):
     def __init__(self):
         super().__init__()
-        self.decoder = nn.ModuleList(
-            [
-                ConvBlock(1024, 512),
-                ConvBlock(512, 256),
-                ConvBlock(256, 128),
-                ConvBlock(128, 64),
-            ]
+        self.decoder = nn.Sequential(
+            ConvBlock(1024, 512),
+            ConvBlock(512, 256),
+            ConvBlock(256, 128),
+            ConvBlock(128, 64),
         )
+        if PIPELINE:
+            self.decoder = GPipe(
+                self.decoder, [1, 1, 2], chunks=CHUNKS, checkpoint="never"
+            )
         self.output = nn.Conv2d(64, 1, kernel_size=1)
 
     def forward(self, x, skips):
