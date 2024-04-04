@@ -64,7 +64,7 @@ class Encoder(nn.Module):
         )
         if PIPELINE:
             self.encoder = GPipe(
-                self.encoder, [3, 1, 1], chunks=CHUNKS, checkpoint="never"
+                self.encoder, [0,0,0,1,1,1,1,1], chunks=CHUNKS, checkpoint="never"
             )
 
     def forward(self, x):
@@ -83,7 +83,7 @@ class Transformer(nn.Module):
         )
         if PIPELINE:
             self.transformers = GPipe(
-                self.transformers, [2, 2, 2], chunks=CHUNKS, checkpoint="never"
+                self.transformers, [0,0,1,1,1,1,1,1], chunks=CHUNKS, checkpoint="never"
             )
 
     def forward(self, x):
@@ -103,7 +103,7 @@ class Decoder(nn.Module):
         )
         if PIPELINE:
             self.decoder = GPipe(
-                self.decoder, [1, 1, 2], chunks=CHUNKS, checkpoint="never"
+                self.decoder, [0,0,0,0,1,1,1,1], chunks=CHUNKS, checkpoint="never"
             )
         self.output = nn.Conv2d(64, 1, kernel_size=1)
 
