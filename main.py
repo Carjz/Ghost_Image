@@ -17,13 +17,13 @@ from functions import *
 
 def main():
     # 数据加载
-    train_dataset = datasets.MNIST(f"Inputs", transform=transform)
-    test_dataset = datasets.MNIST(f"Inputs", transform=transform)
+    train_dataset = datasets.MNIST(f"Inputs", train=True, download=True, transform=transform)
+    test_dataset = datasets.MNIST(f"Inputs", train=False, download=True, transform=transform)
     # train_dataset = datasets.ImageFolder(f"{DATASET_DIR}/train", transform=transform)
     # test_dataset = datasets.ImageFolder(f"{DATASET_DIR}/test", transform=transform)
 
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, drop_last=True)
-    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, drop_last=True)
+    train_loader = DataLoader(train_dataset, shuffle=True, batch_size=BATCH_SIZE, drop_last=True)
+    test_loader = DataLoader(test_dataset, shuffle=False, batch_size=BATCH_SIZE, drop_last=True)
 
     # 模型实例化
     if PIPELINE:

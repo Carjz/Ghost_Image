@@ -44,6 +44,7 @@ def main_eval():
 
     model.eval()
     idx = 0
+    eval_loss = 0.0
     eval_time = 0.0
 
     with torch.no_grad():
@@ -60,17 +61,19 @@ def main_eval():
 
             end_time = time.time()
             eval_time += end_time - start_time
+            loss = criterion(outputs, images)
 
             idx += images.size(0)
-            print(idx)
+            eval_loss += loss.item()
 
             # # 保存输出图像
             # for i in range(outputs.shape[0]):
             #     print_image(outputs[i], f"{FOLDER_PATH}/{labels[i].item()}_{idx}.jpg")
             #     idx += 1
 
-    eval_time /= idx
-    print("Model evaluation takes {:f} seconds.".format(eval_time))
+    print("Model evaluation takes {:f} seconds per image.".format(eval_time/len(test_loader)))
+    print(f"Model evaluation loss: {eval_loss/len(test_loader):.6f}")
+    print("")
 
 
 if __name__ == "__main__":
