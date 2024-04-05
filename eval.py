@@ -17,12 +17,9 @@ from functions import *
 
 def main_eval():
     # 数据加载
-    train_dataset = datasets.MNIST(f"Inputs", train=True, download=True, transform=transform)
     test_dataset = datasets.MNIST(f"Inputs", train=False, download=True, transform=transform)
-    # train_dataset = datasets.ImageFolder(f"{DATASET_DIR}/train", transform=transform)
     # test_dataset = datasets.ImageFolder(f"{DATASET_DIR}/test", transform=transform)
 
-    train_loader = DataLoader(train_dataset, shuffle=True, batch_size=BATCH_SIZE, drop_last=True)
     test_loader = DataLoader(test_dataset, shuffle=False, batch_size=BATCH_SIZE, drop_last=True)
 
     # 模型实例化
@@ -33,7 +30,6 @@ def main_eval():
     model.load_state_dict(torch.load("model.ckpt"))
 
     # 定义优化器和损失函数
-    optimizer = optim.Adam(model.parameters(), lr=1e-4)
     criterion = SSIMLoss(channel=1)
 
     # 保存测试集结果
@@ -57,21 +53,21 @@ def main_eval():
 
             # 前向传播
             outputs = model(sampled_images)
-            outputs = normalize(outputs) * 255
+            outputs_vis = normalize(outputs) * 255
 
             end_time = time.time()
             eval_time += end_time - start_time
             loss = criterion(outputs, images)
+            outputs = outputs_vis
 
-            idx += images.size(0)
             eval_loss += loss.item()
 
-            # # 保存输出图像
-            # for i in range(outputs.shape[0]):
-            #     print_image(outputs[i], f"{FOLDER_PATH}/{labels[i].item()}_{idx}.jpg")
-            #     idx += 1
+            # 保存输出图像
+            for i in range(outputs.shape[0]):
+                print_image(outputs[i], f"{FOLDER_PATH}/{labels[i].item()}_{idx}.jpg")
+                idx += 1
 
-    print("Model evaluation takes {:f} seconds per image.".format(eval_time/len(test_loader)))
+    print("Model evaluation takes {:f} seconds per image.".format(eval_time/(BATCH_SIZE*len(test_loader))))
     print(f"Model evaluation loss: {eval_loss/len(test_loader):.6f}")
     print("")
 
