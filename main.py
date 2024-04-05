@@ -55,7 +55,7 @@ def main():
             optimizer.step()
             train_loss += loss.item()
 
-        print(f"Epoch {epoch+1}/{num_epochs}, Loss: {train_loss/len(train_loader):.6f}")
+        print(f"Epoch {epoch+1}/{num_epochs}, Loss: {train_loss/len(train_loader):.6f}", flush=True)
 
     # 保存测试集结果
     if os.path.exists(FOLDER_PATH):
