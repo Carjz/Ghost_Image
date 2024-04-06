@@ -1,4 +1,5 @@
 *.ckpt
+model.tar*
 Inputs
 Outputs
 __pycache__
