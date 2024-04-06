@@ -68,8 +68,7 @@ def main_eval():
                 idx += 1
 
     print("Model evaluation takes {:f} seconds per image.".format(eval_time/(BATCH_SIZE*len(test_loader))))
-    print(f"Model evaluation loss: {eval_loss/len(test_loader):.6f}")
-    print("")
+    print(f"Model evaluation loss: {eval_loss/len(test_loader):.6f}\n")
 
 
 if __name__ == "__main__":
