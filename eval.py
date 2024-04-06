@@ -80,4 +80,4 @@ if __name__ == "__main__":
 
     during_time = end_time - start_time
     print("All tasks completed.")
-    print("Totally takes {:f} seconds.".format(during_time))
+    print("Totally takes {:f} seconds.\n".format(during_time))
