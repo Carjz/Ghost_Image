@@ -49,7 +49,7 @@ def main_eval():
 
             start_time = time.time()
 
-            sampled_images = sampling(images) / 255
+            sampled_images = sampling(normalize(images))
 
             # 前向传播
             outputs = model(sampled_images)

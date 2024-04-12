@@ -32,8 +32,10 @@ def main():
         model = nn.DataParallel(TransUNet().to(device))
 
     # 定义优化器和损失函数
-    optimizer = optim.Adam(model.parameters(), lr=1e-4)
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
     criterion = SSIMLoss(channel=1)
+
+    # model.load_state_dict(torch.load("model.ckpt"))
 
     # 训练过程
     model.train()
@@ -42,7 +44,7 @@ def main():
         for images, _ in train_loader:
             images = images.to(device)
 
-            sampled_images = sampling(images) / 255
+            sampled_images = sampling(normalize(images))
 
             # 前向传播
             outputs = model(sampled_images)
@@ -68,7 +70,7 @@ def main():
         for images, labels in test_loader:
             images = images.to(device)
 
-            sampled_images = sampling(images) / 255
+            sampled_images = sampling(normalize(images))
 
             # 前向传播
             outputs = model(sampled_images)

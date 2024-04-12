@@ -2,3 +2,4 @@ pytorch-msssim
 torch
 torchgpipe
 torchvision
+open3d
