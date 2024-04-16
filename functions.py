@@ -2,8 +2,12 @@ import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
 import pytorch_msssim
+import open3d as o3d
+import numpy as np
 
 from math import sqrt, inf
+import os
+import sys
 
 from constant import *
 
@@ -25,12 +29,12 @@ def adjust_size(x, target_size):
 
 # 归一化
 def normalize(x):
-    mx = x.max(3, True).values.max(2, True).values
-    mn = x.min(3, True).values.min(2, True).values
+    mx = x.max(-1, True).values.max(-2, True).values
+    mn = x.min(-1, True).values.min(-2, True).values
     diff = mx - mn
-    diff[diff == 0] = 1
+    diff[diff == 0] = 1.
     x = (x - mn) / diff
-    x[x == inf] = 0
+    x[x == inf] = 0.
 
     return x
 
@@ -83,32 +87,64 @@ class SSIMLoss(nn.Module):
         return loss
 
 
+def scanning(obj):
+    mesh = o3d.io.read_triangle_mesh(obj, print_progress=False)
+    mesh = mesh.remove_duplicated_vertices()
+    mesh.compute_vertex_normals()
+    
+    # 计算物体的包围盒
+    bbox = mesh.get_axis_aligned_bounding_box()
+    bbox_extent = bbox.get_extent()
+
+    camera_distance = max(bbox_extent) * (4 / 5)
+    cam = o3d.camera.PinholeCameraParameters()
+    cam.intrinsic.set_intrinsics(IMAGE_SIZE, IMAGE_SIZE, IMAGE_SIZE/2, IMAGE_SIZE/2, IMAGE_SIZE/2, IMAGE_SIZE/2)
+    cam.extrinsic = np.array([
+        [0, 0, -1, 0],
+        [0, -1, 0, 0],
+        [-1, 0, 0, camera_distance],
+        [0, 0, 0, 1]
+    ])
+    
+    # 离屏渲染
+    vis = o3d.visualization.rendering.OffscreenRenderer(IMAGE_SIZE, IMAGE_SIZE)
+    vis.setup_camera(cam.intrinsic, cam.extrinsic)
+    vis.scene.set_lighting(o3d.visualization.rendering.Open3DScene.LightingProfile.NO_SHADOWS, np.array([0, 0, 0]))
+    vis.scene.add_geometry("mesh", mesh, o3d.visualization.rendering.MaterialRecord())
+
+    depth = vis.render_to_depth_image()
+    depth = torch.from_numpy(np.asarray(depth)).to(f"cuda:{gpus[3]}").unsqueeze(0)
+
+    depth = normalize(1 - depth) * IMAGE_SIZE * STRIDE
+    depth = (depth / STRIDE).ceil()
+    depth = normalize(depth)
+
+    unique_depths = depth.unique()
+    unique_depths = unique_depths[unique_depths != 0]
+    depth_planes = []
+
+    for d in unique_depths:
+        plane = depth * (depth == d)
+        plane[plane != 0] = 1.
+
+        depth_planes.append(plane)
+
+    return (depth_planes, unique_depths)
+
+
 def print_image(image, filename):
     image = image.cpu()
     image = transforms.ToPILImage()(image)
     image.save(filename)
 
 
-# 软阈值函数
-def soft_threshold(x, _lambda):
-    return torch.sign(x) * torch.clamp(torch.abs(x) - _lambda, min=0)
+def block_print():
+    sys.stdout = open(os.devnull, 'w')
+    # sys.stderr = open(os.devnull, 'w')
 
 
-# FISTA图像重建
-def FISTA(y, H, _lambda=0.01, _alpha=1, K=10):
-    H_T = H.transpose(2, 3)
-    x = torch.zeros_like(y).float()
-    x_old = []
-    t = 1
+def enable_print():
+    sys.stdout = sys.__stdout__
+    # sys.stderr = sys.__stderr__
 
-    for k in range(K):
-        x_old = x.clone()
-        grad = H_T @ (H @ x - y)
-        x = soft_threshold(x - _alpha * grad, _lambda * _lambda)
-        t_new = (1 + sqrt(1 + 4 * t * t)) / 2
-        x = x + (t - 1) / t_new * (x - x_old)
-        t = t_new
 
-    x = x.nan_to_num(0)
-
-    return x
