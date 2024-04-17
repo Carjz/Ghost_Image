@@ -22,8 +22,10 @@ from functions import *
 
 
 def main():
+    o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Warning)
+
     # 数据加载
-    # 从obj文件扫描得到训练集
+    # 查找训练集所需obj文件
     # objs = glob(f"{DATASET_DIR}/**/*.obj", recursive=True)
     objs = np.load('objs.npy', allow_pickle=True).tolist()
 
@@ -33,24 +35,26 @@ def main():
         train_objs.remove(obj)
 
     # 创建训练集
-    o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Warning)
-    if not os.path.exists(SCANNED_FOLDER):
-        os.makedirs(SCANNED_FOLDER)
-    idx = 0
-    for obj in train_objs:
-        scanned_img, _ = scanning(obj)
-        for img in scanned_img:
-            print_image(img, f"{SCANNED_FOLDER}/{idx}.png")
-            idx += 1
+    # if not os.path.exists(SCANNED_FOLDER):
+    #     os.makedirs(SCANNED_FOLDER)
+    # idx = 0
+    # for obj in train_objs:
+    #     scanned_img, _ = scanning(obj)
+    #     for img in scanned_img:
+    #         print_image(img, f"{SCANNED_FOLDER}/{idx}.png")
+    #         idx += 1
 
-    # train_dataset = TensorDataset(torch.stack(scanned_imgs))
-    # train_dataset = datasets.MNIST(f"Inputs", train=True, download=True, transform=transform)
-    # test_dataset = datasets.MNIST(f"Inputs", train=False, download=True, transform=transform)
     train_dataset = datasets.ImageFolder(f"{SCANNED_FOLDER}/..", transform=transform)
     # test_dataset = datasets.ImageFolder(f"{DATASET_DIR}/test", transform=transform)
 
-    train_loader = DataLoader(train_dataset, shuffle=True, batch_size=BATCH_SIZE, drop_last=True)
-    # test_loader = DataLoader(test_dataset, shuffle=False, batch_size=BATCH_SIZE, drop_last=True)
+    # train_dataset = datasets.MNIST(f"Inputs", train=True, download=True, transform=transform)
+    # test_dataset = datasets.MNIST(f"Inputs", train=False, download=True, transform=transform)
+
+    # train_dataset = TensorDataset(torch.stack(scanned_imgs))
+
+    train_loader = DataLoader(train_dataset, shuffle=True, batch_size=BATCH_SIZE, num_workers=8, drop_last=True)
+    # test_loader = DataLoader(test_dataset, shuffle=False, batch_size=BATCH_SIZE, num_workers=8, drop_last=True)
+    print('Data loading finished.')
 
     # 模型实例化
     if PIPELINE:
@@ -86,7 +90,9 @@ def main():
             train_loss += loss.item()
 
         print(f"Epoch {epoch+1}/{num_epochs}, Loss: {train_loss/len(train_loader):.6f}", flush=True)
-    torch.save(model.state_dict(), "model.ckpt")
+        torch.save(model.state_dict(), "model.ckpt")
+
+    exit()
 
     # 保存测试集结果
     if not os.path.exists(FOLDER_PATH):

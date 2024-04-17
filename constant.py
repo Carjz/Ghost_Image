@@ -8,7 +8,7 @@ device = torch.device(f"cuda:{gpus[0]}")
 
 DATASET_DIR = "Inputs/ShapeNet/ShapeNetCore.v2"
 FOLDER_PATH = "Outputs"
-SCANNED_FOLDER = "Inputs/ShapeNet/ShapeNetCore.v2/Cache"
+SCANNED_FOLDER = "Inputs/ShapeNet/ShapeNetCore.v2/Cache/None_Type"
 IMAGE_SIZE = 200
 BATCH_SIZE = 40
 STRIDE = 10
