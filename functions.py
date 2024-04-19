@@ -42,7 +42,7 @@ def normalize(x):
 # 图像采样
 def sampling(images):
     I = torch.randn(
-        BATCH_SIZE, sampling_times, IMAGE_SIZE, IMAGE_SIZE, device=f"cuda:{gpus[1]}"
+        images.size(0), sampling_times, IMAGE_SIZE, IMAGE_SIZE, device=f"cuda:{gpus[1]}"
     ).to(
         device
     )  # 热光矩阵/随机散斑图案speckle
@@ -54,7 +54,6 @@ def sampling(images):
     I_avg = I.sum(dim=1, keepdim=True) / sampling_times
     BI_avg = BI.sum(dim=1, keepdim=True) / sampling_times
 
-    # FISTA_image = FISTA(BI_avg, B_avg * I_avg, _lambda=0.05, _alpha=0.1, K=5)
     sampled_images = BI_avg - B_avg * I_avg
 
     return sampled_images
@@ -127,7 +126,7 @@ def scanning(obj):
         plane = depth * (depth == d)
         plane[plane != 0] = 1.
 
-        depth_planes.append(plane)
+        depth_planes.append(plane.to(device))
 
     return (depth_planes, unique_depths)
 

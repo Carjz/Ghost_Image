@@ -7,6 +7,7 @@ import torchvision.datasets as datasets
 import os
 import time
 import shutil
+import random
 
 from pdb import set_trace
 
@@ -16,11 +17,13 @@ from functions import *
 
 
 def main_eval():
-    # 数据加载
-    test_dataset = datasets.MNIST(f"Inputs", train=False, download=True, transform=transform)
-    # test_dataset = datasets.ImageFolder(f"{DATASET_DIR}/test", transform=transform)
+    o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Warning)
 
-    test_loader = DataLoader(test_dataset, shuffle=False, batch_size=BATCH_SIZE, drop_last=True)
+    objs = np.load('objs.npy', allow_pickle=True).tolist()
+
+    # 数据集采样，减少训练集规模
+    objs = random.sample(objs, 1000)
+    test_objs = random.sample(objs, ceil(len(objs)*test_ratio))
 
     # 模型实例化
     if PIPELINE:
@@ -44,27 +47,30 @@ def main_eval():
     eval_time = 0.0
 
     with torch.no_grad():
-        for images, labels in test_loader:
-            images = images.to(device)
+        for obj in test_objs:
+            set_trace()
+            scanned_imgs, _ = scanning(obj)
+            scanned_imgs = torch.stack(random.sample(scanned_imgs, min(len(scanned_imgs), 40)))
 
             start_time = time.time()
 
-            sampled_images = sampling(normalize(images))
+            sampled_images = sampling(scanned_imgs)
 
             # 前向传播
             outputs = model(sampled_images)
-            outputs_vis = normalize(outputs) * 255
+            outputs_vis = normalize(outputs)
 
             end_time = time.time()
             eval_time += end_time - start_time
-            loss = criterion(outputs, images)
+            loss = criterion(outputs, scanned_imgs)
             outputs = outputs_vis
 
             eval_loss += loss.item()
+            print(loss.item())
 
             # 保存输出图像
             for i in range(outputs.shape[0]):
-                print_image(outputs[i], f"{FOLDER_PATH}/{labels[i].item()}_{idx}.jpg")
+                print_image(outputs[i], f"{FOLDER_PATH}/{idx}.png")
                 idx += 1
 
     print("Model evaluation takes {:f} seconds per image.".format(eval_time/(BATCH_SIZE*len(test_loader))))
