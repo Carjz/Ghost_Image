@@ -1,5 +1,4 @@
 import torch
-import torch.optim as optim
 from torch.utils.data import DataLoader
 import torchvision.datasets as datasets
 
@@ -19,11 +18,12 @@ from functions import *
 def main_eval():
     o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Warning)
 
-    objs = np.load('objs.npy', allow_pickle=True).tolist()
+    objs = np.load("objs.npy", allow_pickle=True).tolist()
+    print(len(objs))
 
     # 数据集采样，减少训练集规模
     objs = random.sample(objs, 1000)
-    test_objs = random.sample(objs, ceil(len(objs)*test_ratio))
+    test_objs = random.sample(objs, ceil(len(objs) * test_ratio))
 
     # 模型实例化
     if PIPELINE:
@@ -33,13 +33,13 @@ def main_eval():
     model.load_state_dict(torch.load("model.ckpt"))
 
     # 定义优化器和损失函数
-    criterion = SSIMLoss(channel=1)
+    criterion = nn.BCELoss()
+    # criterion = SSIMLoss(channel=1)
 
     # 保存测试集结果
-    if os.path.exists(FOLDER_PATH):
-        shutil.rmtree(FOLDER_PATH)
-    os.makedirs(FOLDER_PATH)
-
+    if os.path.exists(OUTPUT_PATH):
+        shutil.rmtree(OUTPUT_PATH)
+    os.makedirs(OUTPUT_PATH)
 
     model.eval()
     idx = 0
@@ -50,7 +50,7 @@ def main_eval():
         for obj in test_objs:
             set_trace()
             scanned_imgs, _ = scanning(obj)
-            scanned_imgs = torch.stack(random.sample(scanned_imgs, min(len(scanned_imgs), 40)))
+            scanned_imgs = torch.stack(scanned_imgs).to(device_choice[0])
 
             start_time = time.time()
 
@@ -70,10 +70,14 @@ def main_eval():
 
             # 保存输出图像
             for i in range(outputs.shape[0]):
-                print_image(outputs[i], f"{FOLDER_PATH}/{idx}.png")
+                print_image(outputs[i], f"{OUTPUT_PATH}/{idx}.png")
                 idx += 1
 
-    print("Model evaluation takes {:f} seconds per image.".format(eval_time/(BATCH_SIZE*len(test_loader))))
+    print(
+        "Model evaluation takes {:f} seconds per image.".format(
+            eval_time / (BATCH_SIZE * len(test_loader))
+        )
+    )
     print(f"Model evaluation loss: {eval_loss/len(test_loader):.6f}\n")
 
 

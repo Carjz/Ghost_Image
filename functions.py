@@ -5,7 +5,7 @@ import pytorch_msssim
 import open3d as o3d
 import numpy as np
 
-from math import sqrt, inf
+from math import inf
 import os
 import sys
 
@@ -32,9 +32,9 @@ def normalize(x):
     mx = x.max(-1, True).values.max(-2, True).values
     mn = x.min(-1, True).values.min(-2, True).values
     diff = mx - mn
-    diff[diff == 0] = 1.
+    diff[diff == 0] = 1.0
     x = (x - mn) / diff
-    x[x == inf] = 0.
+    x[x == inf] = 0.0
 
     return x
 
@@ -42,11 +42,10 @@ def normalize(x):
 # 图像采样
 def sampling(images):
     I = torch.randn(
-        images.size(0), sampling_times, IMAGE_SIZE, IMAGE_SIZE, device=f"cuda:{gpus[1]}"
-    ).to(
-        device
+        images.size(0), sampling_times, IMAGE_SIZE, IMAGE_SIZE, device=device_choice[2]
     )  # 热光矩阵/随机散斑图案speckle
-    I_imgs = I * images  # 散斑与物体作用
+    I = normalize(I)
+    I_imgs = I * images.to(I.device)  # 散斑与物体作用
     B = I_imgs.sum(dim=(2, 3), keepdim=True)  # 桶测量值
     BI = B * I  # 桶测量值与散斑相关性
 
@@ -56,7 +55,7 @@ def sampling(images):
 
     sampled_images = BI_avg - B_avg * I_avg
 
-    return sampled_images
+    return sampled_images.to(device_choice[1])
 
 
 # 损失函数定义
@@ -90,45 +89,55 @@ def scanning(obj):
     mesh = o3d.io.read_triangle_mesh(obj, print_progress=False)
     mesh = mesh.remove_duplicated_vertices()
     mesh.compute_vertex_normals()
-    
+
     # 计算物体的包围盒
     bbox = mesh.get_axis_aligned_bounding_box()
     bbox_extent = bbox.get_extent()
 
-    camera_distance = max(bbox_extent) * (4 / 5)
+    camera_distance = max(bbox_extent) * (1 / 2)
     cam = o3d.camera.PinholeCameraParameters()
-    cam.intrinsic.set_intrinsics(IMAGE_SIZE, IMAGE_SIZE, IMAGE_SIZE/2, IMAGE_SIZE/2, IMAGE_SIZE/2, IMAGE_SIZE/2)
-    cam.extrinsic = np.array([
-        [0, 0, -1, 0],
-        [0, -1, 0, 0],
-        [-1, 0, 0, camera_distance],
-        [0, 0, 0, 1]
-    ])
-    
+    cam.intrinsic.set_intrinsics(
+        IMAGE_SIZE,
+        IMAGE_SIZE,
+        IMAGE_SIZE / 2,
+        IMAGE_SIZE / 2,
+        IMAGE_SIZE / 2,
+        IMAGE_SIZE / 2,
+    )
+    cam.extrinsic = np.array(
+        [[0, 0, -1, 0], [0, -1, 0, 0], [-1, 0, 0, camera_distance], [0, 0, 0, 1]]
+    )
+
     # 离屏渲染
     vis = o3d.visualization.rendering.OffscreenRenderer(IMAGE_SIZE, IMAGE_SIZE)
     vis.setup_camera(cam.intrinsic, cam.extrinsic)
-    vis.scene.set_lighting(o3d.visualization.rendering.Open3DScene.LightingProfile.NO_SHADOWS, np.array([0, 0, 0]))
+    vis.scene.set_lighting(
+        o3d.visualization.rendering.Open3DScene.LightingProfile.NO_SHADOWS,
+        np.array([0, 0, 0]),
+    )
     vis.scene.add_geometry("mesh", mesh, o3d.visualization.rendering.MaterialRecord())
 
     depth = vis.render_to_depth_image()
-    depth = torch.from_numpy(np.asarray(depth)).to(f"cuda:{gpus[3]}").unsqueeze(0)
+    depth = torch.from_numpy(np.asarray(depth)).to(device_choice[3]).unsqueeze(0)
 
-    depth = normalize(1 - depth) * IMAGE_SIZE * STRIDE
-    depth = (depth / STRIDE).ceil()
-    depth = normalize(depth)
+    binary_depth = depth
+    binary_depth[binary_depth != 0] = 1.
 
-    unique_depths = depth.unique()
-    unique_depths = unique_depths[unique_depths != 0]
-    depth_planes = []
+    # depth = normalize(1 - depth) * IMAGE_SIZE * STRIDE
+    # depth = (depth / STRIDE).ceil()
+    # depth = normalize(depth)
 
-    for d in unique_depths:
-        plane = depth * (depth == d)
-        plane[plane != 0] = 1.
+    # unique_depths = depth.unique()
+    # unique_depths = unique_depths[unique_depths != 0]
+    # depth_planes = []
 
-        depth_planes.append(plane.to(device))
+    # for d in unique_depths:
+    #     plane = depth * (depth == d)
+    #     plane[plane != 0] = 1.0
 
-    return (depth_planes, unique_depths)
+    #     depth_planes.append(plane.to(device_choice[4]))
+
+    return (binary_depth, depth)
 
 
 def print_image(image, filename):
@@ -138,12 +147,10 @@ def print_image(image, filename):
 
 
 def block_print():
-    sys.stdout = open(os.devnull, 'w')
+    sys.stdout = open(os.devnull, "w")
     # sys.stderr = open(os.devnull, 'w')
 
 
 def enable_print():
     sys.stdout = sys.__stdout__
     # sys.stderr = sys.__stderr__
-
-
