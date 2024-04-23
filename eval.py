@@ -22,7 +22,7 @@ def main_eval():
     print(len(objs))
 
     # 数据集采样，减少训练集规模
-    objs = random.sample(objs, 1000)
+    # objs = random.sample(objs, 1000)
     test_objs = random.sample(objs, ceil(len(objs) * test_ratio))
 
     # 模型实例化
@@ -33,8 +33,7 @@ def main_eval():
     model.load_state_dict(torch.load("model.ckpt"))
 
     # 定义优化器和损失函数
-    criterion = nn.BCELoss()
-    # criterion = SSIMLoss(channel=1)
+    criterion = SSIMLoss(channel=1)
 
     # 保存测试集结果
     if os.path.exists(OUTPUT_PATH):
@@ -49,36 +48,35 @@ def main_eval():
     with torch.no_grad():
         for obj in test_objs:
             set_trace()
-            scanned_imgs, _ = scanning(obj)
-            scanned_imgs = torch.stack(scanned_imgs).to(device_choice[0])
+            scanned_img, _ = scanning(obj)
+            scanned_img = scanned_img.to(device_choice[0]).unsqueeze(0)
 
             start_time = time.time()
 
-            sampled_images = sampling(scanned_imgs)
+            sampled_image = sampling(normalize(scanned_img))
 
             # 前向传播
-            outputs = model(sampled_images)
+            outputs = model(sampled_image)
             outputs_vis = normalize(outputs)
 
             end_time = time.time()
             eval_time += end_time - start_time
-            loss = criterion(outputs, scanned_imgs)
+            loss = criterion(outputs, scanned_img)
             outputs = outputs_vis
 
             eval_loss += loss.item()
             print(loss.item())
 
             # 保存输出图像
-            for i in range(outputs.shape[0]):
-                print_image(outputs[i], f"{OUTPUT_PATH}/{idx}.png")
-                idx += 1
+            print_image(outputs[0], f"{OUTPUT_PATH}/{idx}.png")
+            idx += 1
 
     print(
         "Model evaluation takes {:f} seconds per image.".format(
-            eval_time / (BATCH_SIZE * len(test_loader))
+            eval_time / (BATCH_SIZE * len(test_objs))
         )
     )
-    print(f"Model evaluation loss: {eval_loss/len(test_loader):.6f}\n")
+    print(f"Model evaluation loss: {eval_loss/len(test_objs):.6f}\n")
 
 
 if __name__ == "__main__":

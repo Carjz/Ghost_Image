@@ -26,24 +26,27 @@ def main():
     # 数据加载
     # 查找训练集所需obj文件
     # objs = glob(f"{DATASET_DIR}/**/*.obj", recursive=True)
-    objs = np.load("objs.npy", allow_pickle=True).tolist()
+    # np.save("objs.npy", objs)
+    # objs = np.load("objs.npy", allow_pickle=True).tolist()
+    # print(f"Len of objs: {len(objs)}")
 
     # 数据集采样，减少训练集规模
     # objs = random.sample(objs, 1000)
 
-    train_objs = objs
-    test_objs = random.sample(objs, ceil(len(objs) * test_ratio))
-    for obj in test_objs:
-        train_objs.remove(obj)
+    # train_objs = objs
+    # test_objs = random.sample(objs, ceil(len(objs) * test_ratio))
+    # for obj in test_objs:
+    #     train_objs.remove(obj)
 
     # 创建训练集
-    if not os.path.exists(SCANNED_FOLDER):
-        os.makedirs(SCANNED_FOLDER)
-    idx = 0
-    for obj in train_objs:
-        scanned_img, _ = scanning(obj)
-        print_image(scanned_img, f"{SCANNED_FOLDER}/{idx}.png")
-        idx += 1
+    # if not os.path.exists(SCANNED_FOLDER):
+    #     os.makedirs(SCANNED_FOLDER)
+    # idx = -1
+    # for obj in train_objs:
+    #     idx += 1
+    #     print(f"{idx}/{len(train_objs)}", flush=True)
+    #     scanned_img, _ = scanning(obj)
+    #     print_image(scanned_img, f"{SCANNED_FOLDER}/{idx}.png")
 
     train_dataset = datasets.ImageFolder(f"{SCANNED_FOLDER}/..", transform=transform)
     # test_dataset = datasets.ImageFolder(f"{DATASET_DIR}/test", transform=transform)
@@ -58,7 +61,7 @@ def main():
         shuffle=True,
         batch_size=BATCH_SIZE,
         num_workers=16,
-        drop_last=True,
+        drop_last=False,
     )
     # test_loader = DataLoader(
     #     test_dataset,
@@ -77,13 +80,12 @@ def main():
         model = nn.DataParallel(TransUNet().to(device))
 
     # 定义优化器和损失函数
-    optimizer = optim.Adam(model.parameters(), lr=1e-4)
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
     criterion = SSIMLoss(channel=1)
 
     # model.load_state_dict(torch.load("model.ckpt"))
 
     # 训练过程
-    torch.randn
     model.train()
     for epoch in range(num_epochs):
         train_loss = 0.0
@@ -94,11 +96,12 @@ def main():
             sampled_images = sampling(normalize(images))
 
             # 前向传播
-            outputs = model(sampled_images)
+            outputs = model(sampled_images.to(device))
             del sampled_images
 
-            loss = criterion(outputs, images)
+            loss = criterion(outputs, images.to(outputs.device))
             optimizer.zero_grad()
+            del outputs
 
             # 反向传播
             loss.backward()

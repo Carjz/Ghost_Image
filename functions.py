@@ -44,7 +44,6 @@ def sampling(images):
     I = torch.randn(
         images.size(0), sampling_times, IMAGE_SIZE, IMAGE_SIZE, device=device_choice[2]
     )  # 热光矩阵/随机散斑图案speckle
-    I = normalize(I)
     I_imgs = I * images.to(I.device)  # 散斑与物体作用
     B = I_imgs.sum(dim=(2, 3), keepdim=True)  # 桶测量值
     BI = B * I  # 桶测量值与散斑相关性
@@ -94,7 +93,7 @@ def scanning(obj):
     bbox = mesh.get_axis_aligned_bounding_box()
     bbox_extent = bbox.get_extent()
 
-    camera_distance = max(bbox_extent) * (1 / 2)
+    camera_distance = max(bbox_extent) * (4.0 / 5.0)
     cam = o3d.camera.PinholeCameraParameters()
     cam.intrinsic.set_intrinsics(
         IMAGE_SIZE,
@@ -120,8 +119,9 @@ def scanning(obj):
     depth = vis.render_to_depth_image()
     depth = torch.from_numpy(np.asarray(depth)).to(device_choice[3]).unsqueeze(0)
 
+    depth = normalize(1 - depth)
     binary_depth = depth
-    binary_depth[binary_depth != 0] = 1.
+    binary_depth[binary_depth != 0] = 1.0
 
     # depth = normalize(1 - depth) * IMAGE_SIZE * STRIDE
     # depth = (depth / STRIDE).ceil()

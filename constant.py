@@ -7,11 +7,11 @@ from math import ceil, floor
 gpus = range(2)
 device = torch.device(f"cuda:{gpus[0]}")
 device_choice = [
-    torch.device(f"cuda:{gpus[0]}"),  # 训练集中采样前的图像
-    torch.device(f"cuda:{gpus[0]}"),  # 采样后的图像
+    torch.device(f"cuda:{gpus[1]}"),  # 训练集中采样前的图像
+    torch.device(f"cuda:{gpus[1]}"),  # 采样后的图像
     torch.device(f"cuda:{gpus[1]}"),  # 生成随机热光矩阵
-    torch.device(f"cuda:{gpus[1]}"),  # 深度图
-    torch.device(f"cuda:{gpus[1]}"),  # 深度平面图
+    torch.device(f"cuda:{gpus[0]}"),  # 深度图
+    torch.device(f"cuda:{gpus[0]}"),  # 深度平面图
 ]
 
 DATASET_DIR = "Inputs/ShapeNet/ShapeNetCore.v2"
