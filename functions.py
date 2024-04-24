@@ -69,7 +69,7 @@ class SSIMLoss(nn.Module):
         spatial_dims=2,
     ):
         super().__init__()
-        self.ssim_loss = pytorch_msssim.SSIM(
+        self.ssim_loss = pytorch_msssim.MS_SSIM(
             data_range=data_range,
             size_average=size_average,
             win_size=win_size,

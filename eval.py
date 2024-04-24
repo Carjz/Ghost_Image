@@ -47,7 +47,6 @@ def main_eval():
 
     with torch.no_grad():
         for obj in test_objs:
-            set_trace()
             scanned_img, _ = scanning(obj)
             scanned_img = scanned_img.to(device_choice[0]).unsqueeze(0)
 
@@ -61,7 +60,7 @@ def main_eval():
 
             end_time = time.time()
             eval_time += end_time - start_time
-            loss = criterion(outputs, scanned_img)
+            loss = criterion(outputs, scanned_img.to(outputs))
             outputs = outputs_vis
 
             eval_loss += loss.item()
@@ -69,6 +68,7 @@ def main_eval():
 
             # 保存输出图像
             print_image(outputs[0], f"{OUTPUT_PATH}/{idx}.png")
+            print(f"{idx}: {obj}"
             idx += 1
 
     print(

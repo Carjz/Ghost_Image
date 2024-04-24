@@ -4,7 +4,7 @@ import torchvision.transforms as transforms
 from math import ceil, floor
 
 
-gpus = range(2)
+gpus = range(8)
 device = torch.device(f"cuda:{gpus[0]}")
 device_choice = [
     torch.device(f"cuda:{gpus[1]}"),  # 训练集中采样前的图像

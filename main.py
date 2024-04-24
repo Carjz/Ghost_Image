@@ -45,6 +45,10 @@ def main():
     # for obj in train_objs:
     #     idx += 1
     #     print(f"{idx}/{len(train_objs)}", flush=True)
+    #     if idx < 21841:
+    #         continue
+    #     if idx == 21841:
+    #         os.remove(obj)
     #     scanned_img, _ = scanning(obj)
     #     print_image(scanned_img, f"{SCANNED_FOLDER}/{idx}.png")
 
@@ -61,7 +65,7 @@ def main():
         shuffle=True,
         batch_size=BATCH_SIZE,
         num_workers=16,
-        drop_last=False,
+        drop_last=True
     )
     # test_loader = DataLoader(
     #     test_dataset,
