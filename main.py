@@ -87,7 +87,7 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
     criterion = SSIMLoss(channel=1)
 
-    # model.load_state_dict(torch.load("model.ckpt"))
+    model.load_state_dict(torch.load("model.ckpt"))
 
     # 训练过程
     model.train()

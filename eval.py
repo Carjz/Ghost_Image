@@ -47,7 +47,7 @@ def main_eval():
 
     with torch.no_grad():
         for obj in test_objs:
-            scanned_img, _ = scanning(obj)
+            scanned_img, depth = scanning(obj)
             scanned_img = scanned_img.to(device_choice[0]).unsqueeze(0)
 
             start_time = time.time()
@@ -64,11 +64,24 @@ def main_eval():
             outputs = outputs_vis
 
             eval_loss += loss.item()
-            print(loss.item())
+
+            x, y, z = ([], [], [])
+            outputs = torch.where(outputs > 1e-3, torch.tensor(1.0), torch.tensor(0.0))
+            for i in range(IMAGE_SIZE):
+                for j in range(IMAGE_SIZE):
+                    if outputs[0][0][i][j] != 0 and depth[0][i][j] != 0:
+                        x.append(i)
+                        y.append(j)
+                        z.append(depth[0][i][j].item() * IMAGE_SIZE)
+
+            cloud = o3d.geometry.PointCloud()
+            cloud.points = o3d.utility.Vector3dVector(np.dstack((x, y, z))[0])
 
             # 保存输出图像
             print_image(outputs[0], f"{OUTPUT_PATH}/{idx}.png")
-            print(f"{idx}: {obj}"
+            print(f"{loss.item()}: {idx}-{obj}", flush=True)
+            o3d.io.write_point_cloud(f"{OUTPUT_PATH}/obj_{idx}.ply", cloud)
+
             idx += 1
 
     print(

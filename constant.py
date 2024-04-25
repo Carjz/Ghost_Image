@@ -24,7 +24,7 @@ CHUNKS = floor(BATCH_SIZE / len(gpus))
 
 num_epochs = 15
 Nyquist_rate = IMAGE_SIZE * IMAGE_SIZE
-sampling_times = ceil(Nyquist_rate * 0.01)
+sampling_times = ceil(Nyquist_rate * 0.1)
 test_ratio = 0.1
 
 transform = transforms.Compose(
