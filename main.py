@@ -45,19 +45,11 @@ def main():
     # for obj in train_objs:
     #     idx += 1
     #     print(f"{idx}/{len(train_objs)}", flush=True)
-    #     if idx < 21841:
-    #         continue
-    #     if idx == 21841:
-    #         os.remove(obj)
     #     scanned_img, _ = scanning(obj)
     #     print_image(scanned_img, f"{SCANNED_FOLDER}/{idx}.png")
 
     train_dataset = datasets.ImageFolder(f"{SCANNED_FOLDER}/..", transform=transform)
-    # test_dataset = datasets.ImageFolder(f"{DATASET_DIR}/test", transform=transform)
-
     # train_dataset = datasets.MNIST(f"Inputs", train=True, download=True, transform=transform)
-    # test_dataset = datasets.MNIST(f"Inputs", train=False, download=True, transform=transform)
-
     # train_dataset = TensorDataset(torch.stack(scanned_imgs))
 
     train_loader = DataLoader(
@@ -67,21 +59,14 @@ def main():
         num_workers=16,
         drop_last=True
     )
-    # test_loader = DataLoader(
-    #     test_dataset,
-    #     shuffle=False,
-    #     batch_size=BATCH_SIZE,
-    #     num_workers=16,
-    #     drop_last=True,
-    # )
     print("Data loading finished.")
 
     # 模型实例化
     if PIPELINE:
         model = TransUNet().to(device)
     else:
-        # model = TransUNet().to(device)
         model = nn.DataParallel(TransUNet().to(device))
+        # model = TransUNet().to(device)
 
     # 定义优化器和损失函数
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
@@ -129,4 +114,4 @@ if __name__ == "__main__":
 
     during_time = end_time - start_time
     print("All tasks completed.")
-    print("Totally takes {:f} seconds.\n".format(during_time))
+    print(f"Totally takes {during_time} seconds.\n")

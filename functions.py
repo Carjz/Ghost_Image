@@ -14,9 +14,13 @@ from constant import *
 from pdb import set_trace
 
 
-# 双线性插值上采样
-def upsample(x, size):
-    return nn.functional.interpolate(x, size=size, mode="bilinear", align_corners=True)
+def croping(tensor, target):
+    target_size = target.size(-1)
+    tensor_size = tensor.size(-1)
+    delta = tensor_size - target_size
+    delta0 = delta // 2
+    delta -= delta0
+    return tensor[:, :, delta0 : tensor_size-delta, delta0 : tensor_size-delta]
 
 
 # 尺寸调整
@@ -63,7 +67,7 @@ class SSIMLoss(nn.Module):
         self,
         data_range=1.0,
         size_average=True,
-        win_size=11,
+        win_size=9,
         win_sigma=1.5,
         channel=3,
         spatial_dims=2,

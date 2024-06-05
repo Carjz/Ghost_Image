@@ -10,7 +10,7 @@ from pdb import set_trace
 
 # 卷积块
 class ConvBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, stride=1, padding=0):
+    def __init__(self, in_channels, out_channels, stride=2, padding=0):
         super().__init__()
         self.conv = nn.Sequential(
             nn.Conv2d(
@@ -55,12 +55,12 @@ class TransformerBlock(nn.Module):
 class Encoder(nn.Module):
     def __init__(self):
         super().__init__()
+        self.stride = 1
         self.encoder = nn.Sequential(
-            ConvBlock(1, 64, stride=2),
-            ConvBlock(64, 128, stride=2),
-            ConvBlock(128, 256, stride=2),
-            ConvBlock(256, 512, stride=2),
-            ConvBlock(512, 1024, stride=2),
+            ConvBlock(1, 64, stride=self.stride),
+            ConvBlock(64, 128, stride=self.stride),
+            ConvBlock(128, 256, stride=self.stride),
+            ConvBlock(256, 512, stride=self.stride),
         )
         if PIPELINE:
             self.encoder = GPipe(
@@ -82,7 +82,7 @@ class Transformer(nn.Module):
     def __init__(self):
         super().__init__()
         self.transformers = nn.Sequential(
-            *[TransformerBlock(1024, 1024) for _ in range(6)]
+            *[TransformerBlock(512, 512) for _ in range(6)]
         )
         if PIPELINE:
             self.transformers = GPipe(
@@ -117,20 +117,28 @@ class Decoder(nn.Module):
         self.output = nn.Conv2d(64, 1, kernel_size=1)
 
     def forward(self, x, skips):
-        decoder_dim = 1024
         skips = skips[::-1]
+        d = 0
+
         for decode, skip in zip(self.decoder, skips):
-            x = upsample(x, skip.size()[-2:])
+            pooling = nn.AdaptiveMaxPool2d(output_size=(x.size(-1), x.size(-1))).to(skip.device)
+            
+            # skip = croping(skip, x)
+            skip = pooling(skip)
             x = torch.cat([x, skip], dim=1)
 
-            if x.size(1) != decoder_dim:
-                align_layer = ConvBlock(x.size(1), decoder_dim).to(x.device)
-                x = align_layer(x)
-
             x = decode(x)
-            x = upsample(x, (IMAGE_SIZE, IMAGE_SIZE))
 
-            decoder_dim //= 2
+            d += 1
+            if d != len(self.decoder):
+                upsampling = nn.ConvTranspose2d(in_channels=x.size(1), out_channels=x.size(1)//2, kernel_size=2, stride=2, padding=0).to(x.device)
+                x = upsampling(x)
+
+        delta = IMAGE_SIZE - x.size(-1)
+        delta0 = delta // 2
+        delta -= delta0
+        pad = nn.ReflectionPad2d((delta0, delta, delta0, delta)).to(x.device)
+        x = pad(x)
 
         return torch.sigmoid(self.output(x))
 
