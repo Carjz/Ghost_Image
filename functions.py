@@ -124,7 +124,7 @@ def scanning(obj):
     depth = torch.from_numpy(np.asarray(depth)).to(device_choice[3]).unsqueeze(0)
 
     depth = normalize(1 - depth)
-    binary_depth = depth
+    binary_depth = depth.clone()
     binary_depth[binary_depth != 0] = 1.0
 
     # depth = normalize(1 - depth) * IMAGE_SIZE * STRIDE
