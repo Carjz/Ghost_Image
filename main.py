@@ -4,6 +4,7 @@ import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torch.utils.data import TensorDataset
+import torch.cuda.amp as amp
 import torchvision.datasets as datasets
 import open3d as o3d
 
@@ -22,6 +23,8 @@ from functions import *
 
 def main():
     o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Warning)
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
 
     # 数据加载
     # 查找训练集所需obj文件
@@ -57,7 +60,7 @@ def main():
         shuffle=True,
         batch_size=BATCH_SIZE,
         num_workers=16,
-        drop_last=True
+        drop_last=True,
     )
     print("Data loading finished.")
 
@@ -69,10 +72,11 @@ def main():
         # model = TransUNet().to(device)
 
     # 定义优化器和损失函数
-    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    optimizer = optim.Adam(model.parameters(), lr=1e-4)
     criterion = SSIMLoss(channel=1)
+    scaler = amp.GradScaler()
 
-    model.load_state_dict(torch.load("model.ckpt"))
+    # model.load_state_dict(torch.load("model.ckpt"))
 
     # 训练过程
     model.train()
@@ -84,17 +88,22 @@ def main():
 
             sampled_images = sampling(normalize(images))
 
+            optimizer.zero_grad()
+
             # 前向传播
             outputs = model(sampled_images.to(device))
             del sampled_images
 
             loss = criterion(outputs, images.to(outputs.device))
-            optimizer.zero_grad()
             del outputs
 
             # 反向传播
             loss.backward()
             optimizer.step()
+            # scaler.scale(loss).backward()
+            # scaler.step(optimizer)
+            # scaler.update()
+
             train_loss += loss.item()
 
         print(
@@ -102,7 +111,7 @@ def main():
             flush=True,
         )
 
-        torch.save(model.state_dict(), "model.ckpt")
+        torch.save(model.state_dict(), f"Models/model-iter_{epoch}.ckpt")
 
 
 if __name__ == "__main__":

@@ -5,30 +5,13 @@ import pytorch_msssim
 import open3d as o3d
 import numpy as np
 
-from math import inf
+from math import inf, ceil
 import os
 import sys
 
 from constant import *
 
 from pdb import set_trace
-
-
-def croping(tensor, target):
-    target_size = target.size(-1)
-    tensor_size = tensor.size(-1)
-    delta = tensor_size - target_size
-    delta0 = delta // 2
-    delta -= delta0
-    return tensor[:, :, delta0 : tensor_size-delta, delta0 : tensor_size-delta]
-
-
-# 尺寸调整
-def adjust_size(x, target_size):
-    size = x.size()[-2:]
-    if size != target_size:
-        x = upsample(x, target_size)
-    return x
 
 
 # 归一化
@@ -45,18 +28,36 @@ def normalize(x):
 
 # 图像采样
 def sampling(images):
-    I = torch.randn(
-        images.size(0), sampling_times, IMAGE_SIZE, IMAGE_SIZE, device=device_choice[2]
-    )  # 热光矩阵/随机散斑图案speckle
-    I_imgs = I * images.to(I.device)  # 散斑与物体作用
-    B = I_imgs.sum(dim=(2, 3), keepdim=True)  # 桶测量值
-    BI = B * I  # 桶测量值与散斑相关性
+    iter_times = ceil(sampling_times / SAMPLING_ITERATION)
+    idx = 0
+    cur = SAMPLING_ITERATION
+    B_tot = torch.zeros(BATCH_SIZE, 1, 1, 1).to(device_choice[2])
+    I_tot = torch.zeros(BATCH_SIZE, 1, IMAGE_SIZE, IMAGE_SIZE).to(device_choice[2])
+    BI_tot = torch.zeros(BATCH_SIZE, 1, IMAGE_SIZE, IMAGE_SIZE).to(device_choice[2])
 
-    B_avg = B.sum(dim=1, keepdim=True) / sampling_times
-    I_avg = I.sum(dim=1, keepdim=True) / sampling_times
-    BI_avg = BI.sum(dim=1, keepdim=True) / sampling_times
+    for i in range(ceil(iter_times / len(gpus))):
+        for dev in range(len(gpus)):
+            idx += SAMPLING_ITERATION
+            if idx > sampling_times:
+                cur = sampling_times % SAMPLING_ITERATION
+            I = torch.randn(
+                images.size(0),
+                cur,
+                IMAGE_SIZE,
+                IMAGE_SIZE,
+                device=device_choice[dev],
+            )  # 热光矩阵/随机散斑图案speckle
+            I_imgs = I * images.to(I.device)  # 散斑与物体作用
+            B = I_imgs.sum(dim=(2, 3), keepdim=True)  # 桶测量值
+            BI = B * I  # 桶测量值与散斑相关性
 
-    sampled_images = BI_avg - B_avg * I_avg
+            B_tot += B.sum(dim=1, keepdim=True).to(device_choice[2])
+            I_tot += I.sum(dim=1, keepdim=True).to(device_choice[2])
+            BI_tot += BI.sum(dim=1, keepdim=True).to(device_choice[2])
+
+    sampled_images = (
+        BI_tot / sampling_times - B_tot / sampling_times * I_tot / sampling_times
+    )
 
     return sampled_images.to(device_choice[1])
 
@@ -67,7 +68,7 @@ class SSIMLoss(nn.Module):
         self,
         data_range=1.0,
         size_average=True,
-        win_size=9,
+        win_size=11,
         win_sigma=1.5,
         channel=3,
         spatial_dims=2,
@@ -142,6 +143,19 @@ def scanning(obj):
     #     depth_planes.append(plane.to(device_choice[4]))
 
     return (binary_depth, depth)
+
+
+def layer_size(layers):
+    sz = IMAGE_SIZE
+    l = len(layers)
+    szs = torch.zeros(l, dtype=int)
+
+    for i in range(l):
+        sz = (sz - 4) // 2
+    for i in range(l):
+        szs[i] = sz
+        sz = (sz - 4) * 3
+    return szs
 
 
 def print_image(image, filename):
