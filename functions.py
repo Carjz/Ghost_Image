@@ -27,37 +27,50 @@ def normalize(x):
 
 
 # 图像采样
+def block_sampling(images, idx, dev, B_tot, I_tot, BI_tot):
+    dev_idx = gpus.index(dev)
+    if idx > sampling_times:
+        cur = sampling_times % SAMPLING_ITERATION
+    else:
+        cur = SAMPLING_ITERATION
+
+    I = torch.randn(
+        images.size(0),
+        cur,
+        IMAGE_SIZE,
+        IMAGE_SIZE,
+        device=f"cuda:{dev}",
+    )  # 热光矩阵/随机散斑图案speckle
+    I_imgs = I * images.to(I.device)  # 散斑与物体作用
+    B = I_imgs.sum(dim=(2, 3), keepdim=True)  # 桶测量值
+    BI = B * I  # 桶测量值与散斑相关性
+
+    B_tot[dev_idx] += B.sum(dim=1, keepdim=True).to(device_choice[2])
+    I_tot[dev_idx] += I.sum(dim=1, keepdim=True).to(device_choice[2])
+    BI_tot[dev_idx] += BI.sum(dim=1, keepdim=True).to(device_choice[2])
+
+
 def sampling(images):
     iter_times = ceil(sampling_times / SAMPLING_ITERATION)
     idx = 0
-    cur = SAMPLING_ITERATION
-    B_tot = torch.zeros(BATCH_SIZE, 1, 1, 1).to(device_choice[2])
-    I_tot = torch.zeros(BATCH_SIZE, 1, IMAGE_SIZE, IMAGE_SIZE).to(device_choice[2])
-    BI_tot = torch.zeros(BATCH_SIZE, 1, IMAGE_SIZE, IMAGE_SIZE).to(device_choice[2])
+    B_tot = torch.zeros(len(gpus), BATCH_SIZE, 1, 1, 1).to(device_choice[2])
+    I_tot = torch.zeros(len(gpus), BATCH_SIZE, 1, IMAGE_SIZE, IMAGE_SIZE).to(
+        device_choice[2]
+    )
+    BI_tot = torch.zeros(len(gpus), BATCH_SIZE, 1, IMAGE_SIZE, IMAGE_SIZE).to(
+        device_choice[2]
+    )
 
-    for i in range(ceil(iter_times / len(gpus))):
+    for _ in range(ceil(iter_times / len(gpus))):
         for dev in gpus:
             idx += SAMPLING_ITERATION
-            if idx > sampling_times:
-                cur = sampling_times % SAMPLING_ITERATION
-            I = torch.randn(
-                images.size(0),
-                cur,
-                IMAGE_SIZE,
-                IMAGE_SIZE,
-                device=f"cuda:{dev}",
-            )  # 热光矩阵/随机散斑图案speckle
-            I_imgs = I * images.to(I.device)  # 散斑与物体作用
-            B = I_imgs.sum(dim=(2, 3), keepdim=True)  # 桶测量值
-            BI = B * I  # 桶测量值与散斑相关性
+            block_sampling(images, idx, dev, B_tot, I_tot, BI_tot)
 
-            B_tot += B.sum(dim=1, keepdim=True).to(device_choice[2])
-            I_tot += I.sum(dim=1, keepdim=True).to(device_choice[2])
-            BI_tot += BI.sum(dim=1, keepdim=True).to(device_choice[2])
+    B_tot = B_tot.sum(dim=0, keepdim=False) / sampling_times
+    I_tot = I_tot.sum(dim=0, keepdim=False) / sampling_times
+    BI_tot = BI_tot.sum(dim=0, keepdim=False) / sampling_times
 
-    sampled_images = (
-        BI_tot / sampling_times - B_tot / sampling_times * I_tot / sampling_times
-    )
+    sampled_images = BI_tot - B_tot * I_tot
 
     return sampled_images.to(device_choice[1])
 
