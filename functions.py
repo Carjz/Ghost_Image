@@ -36,7 +36,7 @@ def sampling(images):
     BI_tot = torch.zeros(BATCH_SIZE, 1, IMAGE_SIZE, IMAGE_SIZE).to(device_choice[2])
 
     for i in range(ceil(iter_times / len(gpus))):
-        for dev in range(len(gpus)):
+        for dev in gpus:
             idx += SAMPLING_ITERATION
             if idx > sampling_times:
                 cur = sampling_times % SAMPLING_ITERATION
@@ -45,7 +45,7 @@ def sampling(images):
                 cur,
                 IMAGE_SIZE,
                 IMAGE_SIZE,
-                device=device_choice[dev],
+                device=f"cuda:{dev}",
             )  # 热光矩阵/随机散斑图案speckle
             I_imgs = I * images.to(I.device)  # 散斑与物体作用
             B = I_imgs.sum(dim=(2, 3), keepdim=True)  # 桶测量值
