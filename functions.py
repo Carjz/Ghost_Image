@@ -64,7 +64,7 @@ def sampling(images):
     for _ in range(ceil(iter_times / len(gpus))):
         for dev in gpus:
             idx += SAMPLING_ITERATION
-            block_sampling(images, idx, dev, B_tot, I_tot, BI_tot)
+            block_sampling(images, idx, 1, B_tot, I_tot, BI_tot)
 
     B_tot = B_tot.sum(dim=0, keepdim=False) / sampling_times
     I_tot = I_tot.sum(dim=0, keepdim=False) / sampling_times
@@ -141,21 +141,22 @@ def scanning(obj):
     binary_depth = depth.clone()
     binary_depth[binary_depth != 0] = 1.0
 
-    # depth = normalize(1 - depth) * IMAGE_SIZE * STRIDE
-    # depth = (depth / STRIDE).ceil()
-    # depth = normalize(depth)
+    depth = normalize(1 - depth) * IMAGE_SIZE * STRIDE
+    depth = (depth / STRIDE).ceil()
+    depth = normalize(depth)
 
-    # unique_depths = depth.unique()
-    # unique_depths = unique_depths[unique_depths != 0]
-    # depth_planes = []
+    unique_depths = depth.unique()
+    unique_depths = unique_depths[unique_depths != 0]
+    depth_planes = []
 
-    # for d in unique_depths:
-    #     plane = depth * (depth == d)
-    #     plane[plane != 0] = 1.0
+    for d in unique_depths:
+        plane = depth * (depth == d)
+        plane[plane != 0] = 1.0
 
-    #     depth_planes.append(plane.to(device_choice[4]))
+        depth_planes.append(plane.to(device_choice[4]))
 
-    return (binary_depth, depth)
+    # return (binary_depth, depth)
+    return torch.stack(depth_planes)[:100], depth
 
 
 def layer_size(layers):

@@ -30,7 +30,7 @@ def main_eval():
         model = TransUNet().to(device)
     else:
         model = nn.DataParallel(TransUNet().to(device))
-    model.load_state_dict(torch.load("model.ckpt"))
+    model.load_state_dict(torch.load("Models/model-iter_9.ckpt"))
 
     # 定义优化器和损失函数
     criterion = SSIMLoss(channel=1)
@@ -47,6 +47,7 @@ def main_eval():
 
     with torch.no_grad():
         for obj in test_objs:
+            set_trace()
             scanned_img, depth = scanning(obj)
             scanned_img = scanned_img.to(device_choice[0]).unsqueeze(0)
 

@@ -25,12 +25,12 @@ def main_eval():
     # objs = random.sample(objs, 1000)
     test_objs = random.sample(objs, ceil(len(objs) * test_ratio))
 
-    # # 模型实例化
+    # 模型实例化
     # if PIPELINE:
     #     model = TransUNet().to(device)
     # else:
     #     model = nn.DataParallel(TransUNet().to(device))
-    # model.load_state_dict(torch.load("model.ckpt"))
+    # model.load_state_dict(torch.load("Models/model-iter_0.ckpt"))
 
     # 定义优化器和损失函数
     criterion = SSIMLoss(channel=1)

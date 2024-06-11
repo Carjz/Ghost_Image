@@ -32,6 +32,8 @@ def main():
     # np.save("objs.npy", objs)
     # objs = np.load("objs.npy", allow_pickle=True).tolist()
     # print(f"Len of objs: {len(objs)}")
+    if not os.path.exists("Models"):
+        os.makedirs("Models")
 
     # 数据集采样，减少训练集规模
     # objs = random.sample(objs, 1000)
@@ -111,7 +113,7 @@ def main():
             flush=True,
         )
 
-        torch.save(model.state_dict(), f"Models/model-iter_{epoch}.ckpt")
+        torch.save(model.state_dict(), f"Models/model-iter_{epoch+1}.ckpt")
 
 
 if __name__ == "__main__":
