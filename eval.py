@@ -30,7 +30,7 @@ def main_eval():
         model = TransUNet().to(device)
     else:
         model = nn.DataParallel(TransUNet().to(device))
-    model.load_state_dict(torch.load("Models/model-iter_9.ckpt"))
+    model.load_state_dict(torch.load("Models/model.ckpt"))
 
     # 定义优化器和损失函数
     criterion = SSIMLoss(channel=1)
@@ -49,37 +49,48 @@ def main_eval():
         for obj in test_objs:
             set_trace()
             scanned_img, depth = scanning(obj)
-            scanned_img = scanned_img.to(device_choice[0]).unsqueeze(0)
 
             start_time = time.time()
 
             sampled_image = sampling(normalize(scanned_img))
 
-            # 前向传播
-            outputs = model(sampled_image)
-            outputs_vis = normalize(outputs)
-
-            end_time = time.time()
-            eval_time += end_time - start_time
-            loss = criterion(outputs, scanned_img.to(outputs))
-            outputs = outputs_vis
-
-            eval_loss += loss.item()
-
             x, y, z = ([], [], [])
-            outputs = torch.where(outputs > 1e-3, torch.tensor(1.0), torch.tensor(0.0))
-            for i in range(IMAGE_SIZE):
-                for j in range(IMAGE_SIZE):
-                    if outputs[0][0][i][j] != 0 and depth[0][i][j] != 0:
-                        x.append(i)
-                        y.append(j)
-                        z.append(depth[0][i][j].item() * IMAGE_SIZE)
+            for k in range(
+                sampled_image.size(0) // BATCH_SIZE
+                + (1 if sampled_image.size(0) % BATCH_SIZE != 0 else 0)
+            ):
+                l = k * BATCH_SIZE
+                r = min(sampled_image.size(0), (k + 1) * BATCH_SIZE)
+
+                # 前向传播
+                outputs = model(sampled_image[l:r])
+                outputs_vis = normalize(outputs)
+
+                end_time = time.time()
+                eval_time += end_time - start_time
+                loss = criterion(outputs, scanned_img[l:r].to(outputs))
+                outputs = outputs_vis
+
+                eval_loss += loss.item()
+
+                outputs = torch.where(
+                    outputs > 1e-3, torch.tensor(1.0), torch.tensor(0.0)
+                )
+
+                for kk in range(r - l):
+                    non_zero_mask = (outputs[kk][0] != 0) & (depth != 0)
+
+                    indices = non_zero_mask.nonzero(as_tuple=True)
+
+                    x.extend(indices[0].cpu().numpy())
+                    y.extend(indices[1].cpu().numpy())
+                    z.extend((depth[indices] * IMAGE_SIZE).cpu().numpy())
 
             cloud = o3d.geometry.PointCloud()
             cloud.points = o3d.utility.Vector3dVector(np.dstack((x, y, z))[0])
 
             # 保存输出图像
-            print_image(outputs[0], f"{OUTPUT_PATH}/{idx}.png")
+            # print_image(outputs[0], f"{OUTPUT_PATH}/{idx}.png")
             print(f"{loss.item()}: {idx}-{obj}", flush=True)
             o3d.io.write_point_cloud(f"{OUTPUT_PATH}/obj_{idx}.ply", cloud)
 

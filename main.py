@@ -26,14 +26,15 @@ def main():
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
 
+    if not os.path.exists("Models"):
+        os.makedirs("Models")
+
     # 数据加载
     # 查找训练集所需obj文件
     # objs = glob(f"{DATASET_DIR}/**/*.obj", recursive=True)
     # np.save("objs.npy", objs)
     # objs = np.load("objs.npy", allow_pickle=True).tolist()
     # print(f"Len of objs: {len(objs)}")
-    if not os.path.exists("Models"):
-        os.makedirs("Models")
 
     # 数据集采样，减少训练集规模
     # objs = random.sample(objs, 1000)
@@ -43,15 +44,20 @@ def main():
     # for obj in test_objs:
     #     train_objs.remove(obj)
 
+    # np.save("test_objs.npy", test_objs)
+
     # 创建训练集
     # if not os.path.exists(SCANNED_FOLDER):
     #     os.makedirs(SCANNED_FOLDER)
-    # idx = -1
+    # idx = 0
     # for obj in train_objs:
-    #     idx += 1
     #     print(f"{idx}/{len(train_objs)}", flush=True)
     #     scanned_img, _ = scanning(obj)
-    #     print_image(scanned_img, f"{SCANNED_FOLDER}/{idx}.png")
+    #     if len(scanned_img) == 0:
+    #         continue
+    #     for k in range(scanned_img.size(0)):
+    #         print_image(scanned_img[k], f"{SCANNED_FOLDER}/{idx}.png")
+    #         idx += 1
 
     train_dataset = datasets.ImageFolder(f"{SCANNED_FOLDER}/..", transform=transform)
     # train_dataset = datasets.MNIST(f"Inputs", train=True, download=True, transform=transform)
@@ -78,7 +84,7 @@ def main():
     criterion = SSIMLoss(channel=1)
     scaler = amp.GradScaler()
 
-    # model.load_state_dict(torch.load("model.ckpt"))
+    # model.load_state_dict(torch.load("Models/model.ckpt"))
 
     # 训练过程
     model.train()

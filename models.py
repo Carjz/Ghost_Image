@@ -46,6 +46,9 @@ class TransformerBlock(nn.Module):
 
         x = x.view(B, H * W, C)
         x = x + self.msa(x, x, x)[0]
+
+        x = self.layer_norm(x)
+
         x = x + self.mlp(x)
         x = x.view(B, H, W, C)
 

@@ -27,9 +27,8 @@ def normalize(x):
 
 
 # 图像采样
-def block_sampling(images, idx, dev, B_tot, I_tot, BI_tot):
-    dev_idx = gpus.index(dev)
-    if idx > sampling_times:
+def block_sampling(images, bound, B_tot, I_tot, BI_tot):
+    if bound > sampling_times:
         cur = sampling_times % SAMPLING_ITERATION
     else:
         cur = SAMPLING_ITERATION
@@ -39,36 +38,32 @@ def block_sampling(images, idx, dev, B_tot, I_tot, BI_tot):
         cur,
         IMAGE_SIZE,
         IMAGE_SIZE,
-        device=f"cuda:{dev}",
+        device=device_choice[2],
     )  # 热光矩阵/随机散斑图案speckle
     I_imgs = I * images.to(I.device)  # 散斑与物体作用
     B = I_imgs.sum(dim=(2, 3), keepdim=True)  # 桶测量值
     BI = B * I  # 桶测量值与散斑相关性
 
-    B_tot[dev_idx] += B.sum(dim=1, keepdim=True).to(device_choice[2])
-    I_tot[dev_idx] += I.sum(dim=1, keepdim=True).to(device_choice[2])
-    BI_tot[dev_idx] += BI.sum(dim=1, keepdim=True).to(device_choice[2])
+    B_tot += B.sum(dim=1, keepdim=True)
+    I_tot += I.sum(dim=1, keepdim=True)
+    BI_tot += BI.sum(dim=1, keepdim=True)
 
 
 def sampling(images):
     iter_times = ceil(sampling_times / SAMPLING_ITERATION)
-    idx = 0
-    B_tot = torch.zeros(len(gpus), BATCH_SIZE, 1, 1, 1).to(device_choice[2])
-    I_tot = torch.zeros(len(gpus), BATCH_SIZE, 1, IMAGE_SIZE, IMAGE_SIZE).to(
-        device_choice[2]
-    )
-    BI_tot = torch.zeros(len(gpus), BATCH_SIZE, 1, IMAGE_SIZE, IMAGE_SIZE).to(
-        device_choice[2]
-    )
 
-    for _ in range(ceil(iter_times / len(gpus))):
-        for dev in gpus:
-            idx += SAMPLING_ITERATION
-            block_sampling(images, idx, 1, B_tot, I_tot, BI_tot)
+    B_tot = torch.zeros(images.size(0), 1, 1, 1).to(device_choice[2])
+    I_tot = torch.zeros(images.size(0), 1, IMAGE_SIZE, IMAGE_SIZE).to(device_choice[2])
+    BI_tot = torch.zeros(images.size(0), 1, IMAGE_SIZE, IMAGE_SIZE).to(device_choice[2])
 
-    B_tot = B_tot.sum(dim=0, keepdim=False) / sampling_times
-    I_tot = I_tot.sum(dim=0, keepdim=False) / sampling_times
-    BI_tot = BI_tot.sum(dim=0, keepdim=False) / sampling_times
+    bound = 0
+    for i in range(iter_times):
+        bound += SAMPLING_ITERATION
+        block_sampling(images, bound, B_tot, I_tot, BI_tot)
+
+    B_tot /= sampling_times
+    I_tot /= sampling_times
+    BI_tot /= sampling_times
 
     sampled_images = BI_tot - B_tot * I_tot
 
@@ -137,10 +132,6 @@ def scanning(obj):
     depth = vis.render_to_depth_image()
     depth = torch.from_numpy(np.asarray(depth)).to(device_choice[3]).unsqueeze(0)
 
-    depth = normalize(1 - depth)
-    binary_depth = depth.clone()
-    binary_depth[binary_depth != 0] = 1.0
-
     depth = normalize(1 - depth) * IMAGE_SIZE * STRIDE
     depth = (depth / STRIDE).ceil()
     depth = normalize(depth)
@@ -155,8 +146,9 @@ def scanning(obj):
 
         depth_planes.append(plane.to(device_choice[4]))
 
-    # return (binary_depth, depth)
-    return torch.stack(depth_planes)[:100], depth
+    if len(depth_planes) == 0:
+        return torch.tensor([]), torch.tensor([])
+    return torch.stack(depth_planes), depth[0]
 
 
 def layer_size(layers):
